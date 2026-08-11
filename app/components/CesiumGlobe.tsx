@@ -10,9 +10,29 @@ import {
     Cartesian3, //converts longitude/latitude/altitude into Cesium's internal 3D coordinate system
     Cartesian2,
     Viewer,
-} from "cesium"
+    CallbackPositionProperty,
+    JulianDate, //Let's an entity calculate a new position whenever cesium needs to render it
+} from "cesium";
+
+//Importing our own orbital calculation functions
+import {
+    calculateSatellitePosition,
+    createSatelliteRecord,
+} from "../lib/orbit";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { resumePluginState } from "next/dist/build/build-context";
+
+
+//The ISS TLE lines from CelesTrak, hardcoded for now.
+const ISS_TLE_LINE_1 = "1 25544U 98067A   26222.50435993  .00003786  00000+0  75820-4 0  9991";
+
+const ISS_TLE_LINE_2 = "2 25544  51.6324  31.2750 0007420  32.4605 327.6839 15.49403146580170";
+
+const issSatelliteRecord = createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2);
+
+
+
 
 export default function CesiumGlobe() { 
 
@@ -43,18 +63,45 @@ export default function CesiumGlobe() {
             fullscreenButton: false,
         });
 
+        //setting the simulation clock time to real-world time
+        viewer.clock.currentTime = JulianDate.now();
+        viewer.clock.shouldAnimate = true;
+        
+        //to speed up the simulation(100x);
+        //viewer.clock.multiplier = 100;
+
+        const issPosition = new CallbackPositionProperty(
+            (time, result) => {
+
+                const currentTime = time ?? JulianDate.now();
+
+                const date = JulianDate.toDate(currentTime);
+
+                const position = calculateSatellitePosition(issSatelliteRecord, date);
+
+                if(position === null) {
+                    return undefined;
+                }
+
+                const altitudeMeteres = position.altitudekm * 1000;
+
+                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
+            },
+            false, //tells the callback that the position changes over time.
+        );
+
 
         //addidng the coordinates now:
         //temporarily hardcoding the coordinates:
-        const issLongitude = -169.4569;
-        const issLatitude = 21.1821;
-        const issAltitudeKm = 421.2229;
+        // const issLongitude = -169.4569;
+        // const issLatitude = 21.1821;
+        // const issAltitudeKm = 421.2229;
 
-        const issAltitudeMeters = issAltitudeKm * 1000;
+        // const issAltitudeMeters = issAltitudeKm * 1000;
 
 
-        //now converting the normal earth coordinates into cesium's internal 3D cartesian system
-        const issPosition = Cartesian3.fromDegrees(issLongitude, issLatitude, issAltitudeMeters);
+        // //now converting the normal earth coordinates into cesium's internal 3D cartesian system
+        // const issPosition = Cartesian3.fromDegrees(issLongitude, issLatitude, issAltitudeMeters);
 
         //adding a new entity to the Cesium's scene
         const issEntity = viewer.entities.add({
