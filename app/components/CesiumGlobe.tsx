@@ -68,7 +68,7 @@ export default function CesiumGlobe() {
         viewer.clock.shouldAnimate = true;
         
         //to speed up the simulation(100x);
-        //viewer.clock.multiplier = 100;
+        viewer.clock.multiplier = 100;
 
         const issPosition = new CallbackPositionProperty(
             (time, result) => {
