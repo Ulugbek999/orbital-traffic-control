@@ -73,27 +73,47 @@ export default function CesiumGlobe() {
         viewer.clock.shouldAnimate = true;
         
         //to speed up the simulation(100x);
-        viewer.clock.multiplier = 100;
+        //viewer.clock.multiplier = 100;
 
 
         //Adding a trail for the ISS
         const trailCenterTime = JulianDate.toDate(viewer.clock.currentTime);
 
-        const tenMinutesBefore = new Date(trailCenterTime.getTime() - 10 * 60 * 1000);
-        console.log("Center: ", trailCenterTime);
-        console.log("10 minutes before: ", tenMinutesBefore);
+        //An array to hold all of the positions for the ISS's trail.
 
+        const trailPositions: Cartesian3[] = [];
 
-        const tenMinutesBeforePosition = calculateSatellitePosition(issSatelliteRecord, tenMinutesBefore);
-        console.log("ISS position 10 miutes before:", tenMinutesBeforePosition);
+        for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
 
+            const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+           // console.log("HERE:  ", offsetMinutes, sampleTime);
+            const samplePosition = calculateSatellitePosition(issSatelliteRecord, sampleTime);
 
-        if(tenMinutesBeforePosition !== null){
-            const altitudeMeteresTenMinutesBefore = tenMinutesBeforePosition.altitudekm * 1000;
-            const tenMinutesBeforeCartesian = Cartesian3.fromDegrees(tenMinutesBeforePosition.longitude, tenMinutesBeforePosition.latitude,altitudeMeteresTenMinutesBefore);
-
-            console.log("here:    ", tenMinutesBeforeCartesian);
+            if(samplePosition !== null){
+                const altitudeMeters = samplePosition.altitudekm * 1000;
+                const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
+                trailPositions.push(cartesianPosition);
+            }
         }
+
+
+        //10 minutes before no longer needed.
+
+        // const tenMinutesBefore = new Date(trailCenterTime.getTime() - 10 * 60 * 1000);
+        // // console.log("Center: ", trailCenterTime);
+        // // console.log("10 minutes before: ", tenMinutesBefore);
+
+
+        // const tenMinutesBeforePosition = calculateSatellitePosition(issSatelliteRecord, tenMinutesBefore);
+        // //console.log("ISS position 10 miutes before:", tenMinutesBeforePosition);
+
+
+        // if(tenMinutesBeforePosition !== null){
+        //     const altitudeMeteresTenMinutesBefore = tenMinutesBeforePosition.altitudekm * 1000;
+        //     const tenMinutesBeforeCartesian = Cartesian3.fromDegrees(tenMinutesBeforePosition.longitude, tenMinutesBeforePosition.latitude,altitudeMeteresTenMinutesBefore);
+
+        //     //console.log("here:    ", tenMinutesBeforeCartesian);
+        // }
 
 
 
@@ -178,6 +198,16 @@ export default function CesiumGlobe() {
         });
 
         //viewer.flyTo(issEntity);
+
+        //A trail for the ISS
+        viewer.entities.add({
+            name: "ISS Orbit Trail",
+            polyline: {
+                positions: trailPositions,
+                width: 2,
+                material: Color.CYAN,
+            },
+        });
 
 
 
