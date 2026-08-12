@@ -63,12 +63,42 @@ export default function CesiumGlobe() {
             fullscreenButton: false,
         });
 
+
+
+
+
         //setting the simulation clock time to real-world time
         viewer.clock.currentTime = JulianDate.now();
+        
         viewer.clock.shouldAnimate = true;
         
         //to speed up the simulation(100x);
         viewer.clock.multiplier = 100;
+
+
+        //Adding a trail for the ISS
+        const trailCenterTime = JulianDate.toDate(viewer.clock.currentTime);
+
+        const tenMinutesBefore = new Date(trailCenterTime.getTime() - 10 * 60 * 1000);
+        console.log("Center: ", trailCenterTime);
+        console.log("10 minutes before: ", tenMinutesBefore);
+
+
+        const tenMinutesBeforePosition = calculateSatellitePosition(issSatelliteRecord, tenMinutesBefore);
+        console.log("ISS position 10 miutes before:", tenMinutesBeforePosition);
+
+
+        if(tenMinutesBeforePosition !== null){
+            const altitudeMeteresTenMinutesBefore = tenMinutesBeforePosition.altitudekm * 1000;
+            const tenMinutesBeforeCartesian = Cartesian3.fromDegrees(tenMinutesBeforePosition.longitude, tenMinutesBeforePosition.latitude,altitudeMeteresTenMinutesBefore);
+
+            console.log("here:    ", tenMinutesBeforeCartesian);
+        }
+
+
+
+
+
 
         const issPosition = new CallbackPositionProperty(
             (time, result) => {

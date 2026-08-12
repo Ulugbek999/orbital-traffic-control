@@ -1,5 +1,24 @@
 //functions for orbital propagation
 
+
+
+
+//Satellite.js essentially can read the complex Two-Line Element values like the:
+
+// 2 25544 51.64 123.45 00050 250.0 110.0 15.50...
+//         │      │       │      │     │      │
+//         │      │       │      │     │      └ orbital motion
+//         │      │       │      │     └ position in orbit
+//         │      │       │      └ orbit orientation
+//         │      │       └ eccentricity
+//         │      └ another orientation angle
+//         └ inclination
+
+//-> and can turn that data into readable logitude, latitude and altitude.
+//Later, using the TLE data together with satellites.js coverted into readable data and knowing the time, so
+// TLE + time -> SGP4 (Simplified General Perturbations 4) -> we can get a prediction of where the satellite will be at a given time.
+
+
 import {
     degreesLat,
     degreesLong, //Coverts radians into normal latitude/longtidue degrees
