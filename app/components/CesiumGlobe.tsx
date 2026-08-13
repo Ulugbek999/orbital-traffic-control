@@ -246,7 +246,7 @@ export default function CesiumGlobe() {
             label: {
 
                 // Text shown beside the satellite.
-                text: "ISS",
+                text: "Hubble",
 
                 // Move the text slightly above the marker
                 // instead of centering it directly over the dot.
@@ -256,7 +256,7 @@ export default function CesiumGlobe() {
                 pixelOffset: new Cartesian2(0, -10),
 
                 // Make the text white.
-                fillColor: Color.WHITE,
+                fillColor: Color.ALICEBLUE,
 
                 // Give the text a black outline for readability.
                 outlineColor: Color.BLACK,
