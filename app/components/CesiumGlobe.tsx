@@ -26,10 +26,20 @@ import { resumePluginState } from "next/dist/build/build-context";
 
 //The ISS TLE lines from CelesTrak, hardcoded for now.
 const ISS_TLE_LINE_1 = "1 25544U 98067A   26222.50435993  .00003786  00000+0  75820-4 0  9991";
-
 const ISS_TLE_LINE_2 = "2 25544  51.6324  31.2750 0007420  32.4605 327.6839 15.49403146580170";
 
+//Hubble:
+const Hubble_TLE_LINE_1 = "1 20580U 90037B   26224.59154121  .00003205  00000+0  95532-4 0  9995";
+const Hubble_TLE_LINE_2 = "2 20580  28.4727  54.8959 0002463  53.8814 306.2010 15.31324458797226";
+
+
 const issSatelliteRecord = createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2);
+
+const hubbleSatelliteRecord = createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2);
+
+
+
+
 
 
 
@@ -119,7 +129,7 @@ export default function CesiumGlobe() {
 
 
 
-
+        //we need to use the CallbackPositonProperty to create dynamic positions for our satellites
         const issPosition = new CallbackPositionProperty(
             (time, result) => {
 
@@ -138,6 +148,21 @@ export default function CesiumGlobe() {
                 return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
             },
             false, //tells the callback that the position changes over time.
+        );
+
+        const hubblePosition = new CallbackPositionProperty(
+            (time, result) => {
+                const currentTime = time ?? JulianDate.now();
+                const date = JulianDate.toDate(currentTime);
+                const position = calculateSatellitePosition(hubbleSatelliteRecord, date);
+                if(position === null){
+                    return undefined;
+                }
+
+                const altitudeMeters = position.altitudekm * 1000;
+                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeters);
+            },
+            false,
         );
 
 
@@ -196,6 +221,51 @@ export default function CesiumGlobe() {
             },
 
         });
+
+
+        //adding a viewer for the hubble:
+        const hubbleEntity = viewer.entities.add({
+            name: "Hubble",
+            position: hubblePosition,
+            point: {
+                // Marker diameter in pixels.
+                pixelSize: 12,
+
+                // Make the ISS marker bright white.
+                color: Color.WHITE,
+
+                // Add a darker outline around it so it remains visible
+                // over both bright and dark parts of Earth.
+                outlineColor: Color.BLACK,
+
+                // Width of the marker outline.
+                outlineWidth: 2,
+            },
+
+            // Add text next to the point.
+            label: {
+
+                // Text shown beside the satellite.
+                text: "ISS",
+
+                // Move the text slightly above the marker
+                // instead of centering it directly over the dot.
+                verticalOrigin: VerticalOrigin.BOTTOM,
+
+                // Add some space between the marker and text.
+                pixelOffset: new Cartesian2(0, -10),
+
+                // Make the text white.
+                fillColor: Color.WHITE,
+
+                // Give the text a black outline for readability.
+                outlineColor: Color.BLACK,
+
+                // Width of the text outline.
+                outlineWidth: 2,
+            },
+ 
+        })
 
         //viewer.flyTo(issEntity);
 
