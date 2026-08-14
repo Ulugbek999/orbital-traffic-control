@@ -11,7 +11,8 @@ import {
     Cartesian2,
     Viewer,
     CallbackPositionProperty,
-    JulianDate, //Let's an entity calculate a new position whenever cesium needs to render it
+    JulianDate,
+    getImagePixels, //Let's an entity calculate a new position whenever cesium needs to render it
 } from "cesium";
 
 //Importing our own orbital calculation functions
@@ -91,7 +92,14 @@ export default function CesiumGlobe() {
 
         //An array to hold all of the positions for the ISS's trail.
 
-        const trailPositions: Cartesian3[] = [];
+        // const trailPositions: Cartesian3[] = [];
+        // const trailPositionsDictionary: Cartesian3 = {};
+
+        const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+        
+        //adding a list for the ISS
+        trailPositionsDictionary.set("ISS", []);
+
 
         for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
 
@@ -102,9 +110,31 @@ export default function CesiumGlobe() {
             if(samplePosition !== null){
                 const altitudeMeters = samplePosition.altitudekm * 1000;
                 const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
-                trailPositions.push(cartesianPosition);
+                trailPositionsDictionary.get("ISS")?.push(cartesianPosition);
             }
         }
+
+
+        //Adding a list for the Hubble:
+        trailPositionsDictionary.set("Hubble", []);
+
+        //Hubble's position:
+        for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
+
+            const hubbleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+            const hubblePosition = calculateSatellitePosition(hubbleSatelliteRecord, hubbleTime);
+
+
+
+            if(hubblePosition != null){
+                const hubbleAltitudeMeters = hubblePosition.altitudekm * 1000;
+                const hubbleCartesianPosition = Cartesian3.fromDegrees(hubblePosition.longitude, hubblePosition.latitude, hubbleAltitudeMeters);
+                trailPositionsDictionary.get("Hubble")?.push(hubbleCartesianPosition);
+            }
+
+
+        }
+
 
 
         //10 minutes before no longer needed.
@@ -273,12 +303,20 @@ export default function CesiumGlobe() {
         viewer.entities.add({
             name: "ISS Orbit Trail",
             polyline: {
-                positions: trailPositions,
+                positions: trailPositionsDictionary.get("ISS"),
                 width: 2,
                 material: Color.CYAN,
             },
         });
 
+        viewer.entities.add({
+            name: "Hubble Orbit Trail",
+            polyline: {
+                positions: trailPositionsDictionary.get("Hubble"),
+                width: 2,
+                material: Color.AQUA,
+            }
+        })
 
 
 
