@@ -11,7 +11,8 @@ import {
     Cartesian2,
     Viewer,
     CallbackPositionProperty,
-    JulianDate, //Let's an entity calculate a new position whenever cesium needs to render it
+    JulianDate,
+    getImagePixels, //Let's an entity calculate a new position whenever cesium needs to render it
 } from "cesium";
 
 //Importing our own orbital calculation functions
@@ -20,22 +21,36 @@ import {
     createSatelliteRecord,
 } from "../lib/orbit";
 
+import { TLE_DATA } from "../lib/satellites";
+
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { resumePluginState } from "next/dist/build/build-context";
 
 
+const TLE_DATA_Dictionary = TLE_DATA();
+
+
 //The ISS TLE lines from CelesTrak, hardcoded for now.
-const ISS_TLE_LINE_1 = "1 25544U 98067A   26222.50435993  .00003786  00000+0  75820-4 0  9991";
-const ISS_TLE_LINE_2 = "2 25544  51.6324  31.2750 0007420  32.4605 327.6839 15.49403146580170";
+const ISS_TLE_LINE_1 = TLE_DATA_Dictionary.ISS_TLE_LINE_1;
+const ISS_TLE_LINE_2 = TLE_DATA_Dictionary.ISS_TLE_LINE_2;
 
 //Hubble:
-const Hubble_TLE_LINE_1 = "1 20580U 90037B   26224.59154121  .00003205  00000+0  95532-4 0  9995";
-const Hubble_TLE_LINE_2 = "2 20580  28.4727  54.8959 0002463  53.8814 306.2010 15.31324458797226";
+const Hubble_TLE_LINE_1 = TLE_DATA_Dictionary.Hubble_TLE_LINE_1;
+const Hubble_TLE_LINE_2 = TLE_DATA_Dictionary.Hubble_TLE_LINE_2;
+
+//TIANHE
+const Tianhe_TLE_LINE_1 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_1;
+const Tianhe_TLE_LINE_2 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_2;
 
 
+
+
+//Creating satellite records:
 const issSatelliteRecord = createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2);
 
 const hubbleSatelliteRecord = createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2);
+
+const tianheSatelliteRecord = createSatelliteRecord(Tianhe_TLE_LINE_1, Tianhe_TLE_LINE_2);
 
 
 
@@ -91,7 +106,14 @@ export default function CesiumGlobe() {
 
         //An array to hold all of the positions for the ISS's trail.
 
-        const trailPositions: Cartesian3[] = [];
+        // const trailPositions: Cartesian3[] = [];
+        // const trailPositionsDictionary: Cartesian3 = {};
+
+        const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+        
+        //adding a list for the ISS
+        trailPositionsDictionary.set("ISS", []);
+
 
         for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
 
@@ -102,30 +124,30 @@ export default function CesiumGlobe() {
             if(samplePosition !== null){
                 const altitudeMeters = samplePosition.altitudekm * 1000;
                 const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
-                trailPositions.push(cartesianPosition);
+                trailPositionsDictionary.get("ISS")?.push(cartesianPosition);
             }
         }
 
 
-        //10 minutes before no longer needed.
+        //Adding a list for the Hubble:
+        trailPositionsDictionary.set("Hubble", []);
 
-        // const tenMinutesBefore = new Date(trailCenterTime.getTime() - 10 * 60 * 1000);
-        // // console.log("Center: ", trailCenterTime);
-        // // console.log("10 minutes before: ", tenMinutesBefore);
+        //Hubble's position:
+        for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
 
-
-        // const tenMinutesBeforePosition = calculateSatellitePosition(issSatelliteRecord, tenMinutesBefore);
-        // //console.log("ISS position 10 miutes before:", tenMinutesBeforePosition);
-
-
-        // if(tenMinutesBeforePosition !== null){
-        //     const altitudeMeteresTenMinutesBefore = tenMinutesBeforePosition.altitudekm * 1000;
-        //     const tenMinutesBeforeCartesian = Cartesian3.fromDegrees(tenMinutesBeforePosition.longitude, tenMinutesBeforePosition.latitude,altitudeMeteresTenMinutesBefore);
-
-        //     //console.log("here:    ", tenMinutesBeforeCartesian);
-        // }
+            const hubbleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+            const hubblePosition = calculateSatellitePosition(hubbleSatelliteRecord, hubbleTime);
 
 
+
+            if(hubblePosition != null){
+                const hubbleAltitudeMeters = hubblePosition.altitudekm * 1000;
+                const hubbleCartesianPosition = Cartesian3.fromDegrees(hubblePosition.longitude, hubblePosition.latitude, hubbleAltitudeMeters);
+                trailPositionsDictionary.get("Hubble")?.push(hubbleCartesianPosition);
+            }
+
+
+        }
 
 
 
@@ -164,6 +186,22 @@ export default function CesiumGlobe() {
             },
             false,
         );
+
+
+        const TianhePosition = new CallbackPositionProperty(
+            (time, result) => {
+                const currentTime = time ?? JulianDate.now();
+                const date = JulianDate.toDate(currentTime);
+                const position = calculateSatellitePosition(tianheSatelliteRecord, date);
+                if(position === null){
+                    return undefined;
+                }
+
+                const altitudeMeters = position.altitudekm * 1000;
+                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeters);
+            },
+            false
+        )
 
 
         //addidng the coordinates now:
@@ -267,18 +305,69 @@ export default function CesiumGlobe() {
  
         })
 
+        //a viewer for the Tianhe
+        const tianheEntity = viewer.entities.add({
+            name: "CSS (TIANHE)",
+            position: TianhePosition,
+            point: {
+                // Marker diameter in pixels.
+                pixelSize: 12,
+
+                // Make the ISS marker bright white.
+                color: Color.WHITE,
+
+                // Add a darker outline around it so it remains visible
+                // over both bright and dark parts of Earth.
+                outlineColor: Color.BLACK,
+
+                // Width of the marker outline.
+                outlineWidth: 2,
+            },
+
+            // Add text next to the point.
+            label: {
+
+                // Text shown beside the satellite.
+                text: "CSS Tianhe",
+
+                // Move the text slightly above the marker
+                // instead of centering it directly over the dot.
+                verticalOrigin: VerticalOrigin.BOTTOM,
+
+                // Add some space between the marker and text.
+                pixelOffset: new Cartesian2(0, -10),
+
+                // Make the text white.
+                fillColor: Color.ALICEBLUE,
+
+                // Give the text a black outline for readability.
+                outlineColor: Color.BLACK,
+
+                // Width of the text outline.
+                outlineWidth: 2,
+            },
+        })
+
         //viewer.flyTo(issEntity);
 
         //A trail for the ISS
         viewer.entities.add({
             name: "ISS Orbit Trail",
             polyline: {
-                positions: trailPositions,
+                positions: trailPositionsDictionary.get("ISS"),
                 width: 2,
                 material: Color.CYAN,
             },
         });
 
+        viewer.entities.add({
+            name: "Hubble Orbit Trail",
+            polyline: {
+                positions: trailPositionsDictionary.get("Hubble"),
+                width: 2,
+                material: Color.AQUA,
+            }
+        })
 
 
 
