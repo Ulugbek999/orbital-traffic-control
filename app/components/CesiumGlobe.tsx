@@ -27,10 +27,10 @@ import { TLE_DATA } from "../lib/satellites";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { resumePluginState } from "next/dist/build/build-context";
 import { off } from "node:process";
+import { SatRec } from "satellite.js";
 
 
 const TLE_DATA_Dictionary = TLE_DATA();
-
 
 //The ISS TLE lines from CelesTrak, hardcoded for now.
 const ISS_TLE_LINE_1 = TLE_DATA_Dictionary.ISS_TLE_LINE_1;
@@ -46,17 +46,13 @@ const Tianhe_TLE_LINE_2 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_2;
 
 
 
-
 //Creating satellite records:
-const issSatelliteRecord = createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2);
+const satelliteRecords: Map<string, SatRec> = new Map();
 
-const hubbleSatelliteRecord = createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2);
-
-const tianheSatelliteRecord = createSatelliteRecord(Tianhe_TLE_LINE_1, Tianhe_TLE_LINE_2);
-
-
-
-
+//creating satellite records for different satellites
+satelliteRecords.set("ISS", createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2));
+satelliteRecords.set("CSS Tianhe", createSatelliteRecord(Tianhe_TLE_LINE_1, Tianhe_TLE_LINE_2));
+satelliteRecords.set("Hubble", createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2));
 
 
 
@@ -102,134 +98,62 @@ export default function CesiumGlobe() {
         //to speed up the simulation(100x);
         //viewer.clock.multiplier = 100;
 
+        //helper to bypass the "undefined error for the SatRec"
+        function getSatelliteRecord(name: string): SatRec {
+            const record = satelliteRecords.get(name);
 
-        //Adding a trail for the ISS
+            if(record === undefined){
+                throw new Error("Satellite record does not exist.");
+            }
+
+            return record;
+        }
+
+
+        //Adding a trail for the satellites
         const trailCenterTime = JulianDate.toDate(viewer.clock.currentTime);
 
-        //An array to hold all of the positions for the ISS's trail.
 
-        // const trailPositions: Cartesian3[] = [];
-        // const trailPositionsDictionary: Cartesian3 = {};
-
-        let trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+        const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
         
         //adding a list for the ISS
-        trailPositionsDictionary.set("ISS", []);
+        trailPositionsDictionary.set("ISS", calculateSatelliteOrbit(getSatelliteRecord("ISS"), trailCenterTime));
 
         //Adding a list for the Hubble:
-        trailPositionsDictionary.set("Hubble", []);
+        trailPositionsDictionary.set("Hubble", calculateSatelliteOrbit(getSatelliteRecord("Hubble"), trailCenterTime));
 
         //Adding a list for the CSS Tianhe
-        trailPositionsDictionary.set("CSS Tianhe", []);
+        trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
 
-        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "ISS", issSatelliteRecord, trailCenterTime);
-        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "Hubble", hubbleSatelliteRecord, trailCenterTime);
-        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "CSS Tianhe", tianheSatelliteRecord, trailCenterTime);
+        //Dynamic Satellie Positions
+        const dynamicSatellitePositions: Map<string, CallbackPositionProperty> = new Map();
 
-        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
+        for (const [key, value] of satelliteRecords.entries()){
 
-        //     const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
-        //    // console.log("HERE:  ", offsetMinutes, sampleTime);
-        //     const samplePosition = calculateSatellitePosition(issSatelliteRecord, sampleTime);
+            dynamicSatellitePositions.set(key, 
 
-        //     if(samplePosition !== null){
-        //         const altitudeMeters = samplePosition.altitudekm * 1000;
-        //         const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
-        //         trailPositionsDictionary.get("ISS")?.push(cartesianPosition);
-        //     }
-        // }
+                //we need to use the CallbackPositonProperty to create dynamic positions for our satellites
+                new CallbackPositionProperty(
+                    (time, result) => {
 
-        // //Hubble's position:
-        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
+                        const currentTime = time ?? JulianDate.now();
 
-        //     const hubbleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
-        //     const hubblePosition = calculateSatellitePosition(hubbleSatelliteRecord, hubbleTime);
+                        const date = JulianDate.toDate(currentTime);
 
+                        const position = calculateSatellitePosition(value, date);
 
+                        if(position === null) {
+                            return undefined;
+                        }
 
-        //     if(hubblePosition != null){
-        //         const hubbleAltitudeMeters = hubblePosition.altitudekm * 1000;
-        //         const hubbleCartesianPosition = Cartesian3.fromDegrees(hubblePosition.longitude, hubblePosition.latitude, hubbleAltitudeMeters);
-        //         trailPositionsDictionary.get("Hubble")?.push(hubbleCartesianPosition);
-        //     }
+                        const altitudeMeteres = position.altitudekm * 1000;
 
-
-        // }
-
-        // //CSS trail
-        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
-        //     const CSSTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
-        //     const CSSPositions = calculateSatellitePosition(tianheSatelliteRecord, CSSTime);
-
-        //     if(CSSPositions != null){
-        //         const CSSAltitudeMeters = CSSPositions.altitudekm * 1000;
-        //         const CSSCartesianPosition = Cartesian3.fromDegrees(CSSPositions.longitude, CSSPositions.latitude, CSSAltitudeMeters);
-        //         trailPositionsDictionary.get("CSS Tianhe")?.push(CSSCartesianPosition);
-        //     }
-        // }
-
-
-
-        //we need to use the CallbackPositonProperty to create dynamic positions for our satellites
-        const issPosition = new CallbackPositionProperty(
-            (time, result) => {
-
-                const currentTime = time ?? JulianDate.now();
-
-                const date = JulianDate.toDate(currentTime);
-
-                const position = calculateSatellitePosition(issSatelliteRecord, date);
-
-                if(position === null) {
-                    return undefined;
-                }
-
-                const altitudeMeteres = position.altitudekm * 1000;
-
-                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
-            },
-            false, //tells the callback that the position changes over time.
-        );
-
-        const hubblePosition = new CallbackPositionProperty(
-            (time, result) => {
-                const currentTime = time ?? JulianDate.now();
-                const date = JulianDate.toDate(currentTime);
-                const position = calculateSatellitePosition(hubbleSatelliteRecord, date);
-                if(position === null){
-                    return undefined;
-                }
-
-                const altitudeMeters = position.altitudekm * 1000;
-                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeters);
-            },
-            false,
-        );
-
-
-        const TianhePosition = new CallbackPositionProperty(
-            (time, result) => {
-                const currentTime = time ?? JulianDate.now();
-                const date = JulianDate.toDate(currentTime);
-                const position = calculateSatellitePosition(tianheSatelliteRecord, date);
-                if(position === null){
-                    return undefined;
-                }
-
-                const altitudeMeters = position.altitudekm * 1000;
-                return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeters);
-            },
-            false
-        )
-
-
-        //addidng the coordinates now:
-        //temporarily hardcoding the coordinates:
-        // const issLongitude = -169.4569;
-        // const issLatitude = 21.1821;
-        // const issAltitudeKm = 421.2229;
-
-        // const issAltitudeMeters = issAltitudeKm * 1000;
+                        return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
+                    },
+                    false, //tells the callback that the position changes over time.
+                )
+            )
+        }
 
 
         // //now converting the normal earth coordinates into cesium's internal 3D cartesian system
@@ -238,7 +162,7 @@ export default function CesiumGlobe() {
         //adding a new entity to the Cesium's scene
         const issEntity = viewer.entities.add({
             name: "ISS (ZARYA)",
-            position: issPosition,
+            position: dynamicSatellitePositions.get("ISS"),
             point: {
                 // Marker diameter in pixels.
                 pixelSize: 12,
@@ -283,7 +207,7 @@ export default function CesiumGlobe() {
         //adding a viewer for the hubble:
         const hubbleEntity = viewer.entities.add({
             name: "Hubble",
-            position: hubblePosition,
+            position: dynamicSatellitePositions.get("Hubble"),
             point: {
                 // Marker diameter in pixels.
                 pixelSize: 12,
@@ -327,7 +251,7 @@ export default function CesiumGlobe() {
         //a viewer for the Tianhe
         const tianheEntity = viewer.entities.add({
             name: "CSS (TIANHE)",
-            position: TianhePosition,
+            position: dynamicSatellitePositions.get("CSS Tianhe"),
             point: {
                 // Marker diameter in pixels.
                 pixelSize: 12,
@@ -373,37 +297,6 @@ export default function CesiumGlobe() {
 
 
         //viewer.flyTo(issEntity);
-
-        // //A trail for the ISS
-        // viewer.entities.add({
-        //     name: "ISS Orbit Trail",
-        //     polyline: {
-        //         positions: trailPositionsDictionary.get("ISS"),
-        //         width: 2,
-        //         material: Color.CYAN,
-        //     },
-        // });
-        
-        // //Hubble
-        // viewer.entities.add({
-        //     name: "Hubble Orbit Trail",
-        //     polyline: {
-        //         positions: trailPositionsDictionary.get("Hubble"),
-        //         width: 2,
-        //         material: Color.AQUA,
-        //     }
-        // });
-
-
-        // //CSS Tianhe
-        // viewer.entities.add({
-        //     name: "CSS Tianhe Orbit",
-        //     polyline: {
-        //         positions: trailPositionsDictionary.get("CSS Tianhe"),
-        //         width: 2,
-        //         material: Color.BLUEVIOLET,
-        //     }
-        // })
 
         for(const [key, value] of trailPositionsDictionary.entries()){
 

@@ -82,9 +82,10 @@ export function calculateSatellitePosition(satrec: ReturnType<typeof twoline2sat
 
 //A function to calculate satellites trail in 5 minutes increments assuming that the satellites orbit is about 90 minutes long
 
-export function calculateSatelliteOrbit(trailPositionsDictionary: Map<string, Cartesian3[]>, satelliteName: string , satelliteRecord: SatRec, trailCenterTime: Date): Map<string, Cartesian3[]> {
+export function calculateSatelliteOrbit( satelliteRecord: SatRec, trailCenterTime: Date): Cartesian3[]{
 
     //trailPositionsDictionary.set(satelliteName, []);
+    let result: Cartesian3[] = [];
 
     for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
         const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
@@ -93,12 +94,12 @@ export function calculateSatelliteOrbit(trailPositionsDictionary: Map<string, Ca
         if(samplePosition !== null){
             const altitudeMeters = samplePosition.altitudekm * 1000;
             const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
-            trailPositionsDictionary.get(satelliteName)?.push(cartesianPosition);
+            result.push(cartesianPosition);
         }
     }
 
 
     //the function updates the map with the list of points for the orbit of the selected satellite.
-    return trailPositionsDictionary;
+    return result;
 
 }
