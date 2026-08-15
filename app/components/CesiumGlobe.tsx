@@ -19,12 +19,14 @@ import {
 import {
     calculateSatellitePosition,
     createSatelliteRecord,
+    calculateSatelliteOrbit,
 } from "../lib/orbit";
 
 import { TLE_DATA } from "../lib/satellites";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { resumePluginState } from "next/dist/build/build-context";
+import { off } from "node:process";
 
 
 const TLE_DATA_Dictionary = TLE_DATA();
@@ -109,45 +111,62 @@ export default function CesiumGlobe() {
         // const trailPositions: Cartesian3[] = [];
         // const trailPositionsDictionary: Cartesian3 = {};
 
-        const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+        let trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
         
         //adding a list for the ISS
         trailPositionsDictionary.set("ISS", []);
 
-
-        for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
-
-            const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
-           // console.log("HERE:  ", offsetMinutes, sampleTime);
-            const samplePosition = calculateSatellitePosition(issSatelliteRecord, sampleTime);
-
-            if(samplePosition !== null){
-                const altitudeMeters = samplePosition.altitudekm * 1000;
-                const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
-                trailPositionsDictionary.get("ISS")?.push(cartesianPosition);
-            }
-        }
-
-
         //Adding a list for the Hubble:
         trailPositionsDictionary.set("Hubble", []);
 
-        //Hubble's position:
-        for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
+        //Adding a list for the CSS Tianhe
+        trailPositionsDictionary.set("CSS Tianhe", []);
 
-            const hubbleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
-            const hubblePosition = calculateSatellitePosition(hubbleSatelliteRecord, hubbleTime);
+        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "ISS", issSatelliteRecord, trailCenterTime);
+        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "Hubble", hubbleSatelliteRecord, trailCenterTime);
+        trailPositionsDictionary = calculateSatelliteOrbit(trailPositionsDictionary, "CSS Tianhe", tianheSatelliteRecord, trailCenterTime);
+
+        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
+
+        //     const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+        //    // console.log("HERE:  ", offsetMinutes, sampleTime);
+        //     const samplePosition = calculateSatellitePosition(issSatelliteRecord, sampleTime);
+
+        //     if(samplePosition !== null){
+        //         const altitudeMeters = samplePosition.altitudekm * 1000;
+        //         const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
+        //         trailPositionsDictionary.get("ISS")?.push(cartesianPosition);
+        //     }
+        // }
+
+        // //Hubble's position:
+        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
+
+        //     const hubbleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+        //     const hubblePosition = calculateSatellitePosition(hubbleSatelliteRecord, hubbleTime);
 
 
 
-            if(hubblePosition != null){
-                const hubbleAltitudeMeters = hubblePosition.altitudekm * 1000;
-                const hubbleCartesianPosition = Cartesian3.fromDegrees(hubblePosition.longitude, hubblePosition.latitude, hubbleAltitudeMeters);
-                trailPositionsDictionary.get("Hubble")?.push(hubbleCartesianPosition);
-            }
+        //     if(hubblePosition != null){
+        //         const hubbleAltitudeMeters = hubblePosition.altitudekm * 1000;
+        //         const hubbleCartesianPosition = Cartesian3.fromDegrees(hubblePosition.longitude, hubblePosition.latitude, hubbleAltitudeMeters);
+        //         trailPositionsDictionary.get("Hubble")?.push(hubbleCartesianPosition);
+        //     }
 
 
-        }
+        // }
+
+        // //CSS trail
+        // for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes += 5){
+        //     const CSSTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+        //     const CSSPositions = calculateSatellitePosition(tianheSatelliteRecord, CSSTime);
+
+        //     if(CSSPositions != null){
+        //         const CSSAltitudeMeters = CSSPositions.altitudekm * 1000;
+        //         const CSSCartesianPosition = Cartesian3.fromDegrees(CSSPositions.longitude, CSSPositions.latitude, CSSAltitudeMeters);
+        //         trailPositionsDictionary.get("CSS Tianhe")?.push(CSSCartesianPosition);
+        //     }
+        // }
 
 
 
@@ -348,28 +367,60 @@ export default function CesiumGlobe() {
             },
         })
 
+
+
+//--------------------------------------------------ORBITS------------------------------------------------------------------------//
+
+
         //viewer.flyTo(issEntity);
 
-        //A trail for the ISS
-        viewer.entities.add({
-            name: "ISS Orbit Trail",
-            polyline: {
-                positions: trailPositionsDictionary.get("ISS"),
-                width: 2,
-                material: Color.CYAN,
-            },
-        });
+        // //A trail for the ISS
+        // viewer.entities.add({
+        //     name: "ISS Orbit Trail",
+        //     polyline: {
+        //         positions: trailPositionsDictionary.get("ISS"),
+        //         width: 2,
+        //         material: Color.CYAN,
+        //     },
+        // });
+        
+        // //Hubble
+        // viewer.entities.add({
+        //     name: "Hubble Orbit Trail",
+        //     polyline: {
+        //         positions: trailPositionsDictionary.get("Hubble"),
+        //         width: 2,
+        //         material: Color.AQUA,
+        //     }
+        // });
 
-        viewer.entities.add({
-            name: "Hubble Orbit Trail",
-            polyline: {
-                positions: trailPositionsDictionary.get("Hubble"),
-                width: 2,
-                material: Color.AQUA,
-            }
-        })
+
+        // //CSS Tianhe
+        // viewer.entities.add({
+        //     name: "CSS Tianhe Orbit",
+        //     polyline: {
+        //         positions: trailPositionsDictionary.get("CSS Tianhe"),
+        //         width: 2,
+        //         material: Color.BLUEVIOLET,
+        //     }
+        // })
+
+        for(const [key, value] of trailPositionsDictionary.entries()){
+
+            viewer.entities.add({
+                name: key + " Orbit",
+                polyline: {
+                    positions: value,
+                    width: 2,
+                    material: Color.CYAN,
+                }
+            })
 
 
+        }
+
+
+//----------------------------------------------------------------------------------------------------------------------------------//
 
         return() => {
             viewer.destroy();

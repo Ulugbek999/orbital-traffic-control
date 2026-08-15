@@ -1,5 +1,10 @@
 //functions for orbital propagation
 
+import {
+    Cartesian3
+} from "cesium";
+import { off } from "node:process";
+
 
 
 
@@ -24,7 +29,7 @@ import {
     degreesLong, //Coverts radians into normal latitude/longtidue degrees
     eciToGeodetic, //Converts space-centred ECI coordinates into Earth coordinates
     gstime, //Calcualtes Earth's rotation relative to space at that moment
-    propagate, //Calculates the satellites position at the specific time
+    propagate, SatRec, //Calculates the satellites position at the specific time
     twoline2satrec, //Converts the two TLE strings into an internal satellite record
 } from "satellite.js";
 
@@ -71,3 +76,29 @@ export function calculateSatellitePosition(satrec: ReturnType<typeof twoline2sat
         altitudekm: positionGeodetic.height
     };
 };
+
+
+
+
+//A function to calculate satellites trail in 5 minutes increments assuming that the satellites orbit is about 90 minutes long
+
+export function calculateSatelliteOrbit(trailPositionsDictionary: Map<string, Cartesian3[]>, satelliteName: string , satelliteRecord: SatRec, trailCenterTime: Date): Map<string, Cartesian3[]> {
+
+    //trailPositionsDictionary.set(satelliteName, []);
+
+    for(let offsetMinutes = -45; offsetMinutes <= 45; offsetMinutes+=5){
+        const sampleTime = new Date(trailCenterTime.getTime() + offsetMinutes * 60 * 1000);
+        const samplePosition = calculateSatellitePosition(satelliteRecord, sampleTime);
+            
+        if(samplePosition !== null){
+            const altitudeMeters = samplePosition.altitudekm * 1000;
+            const cartesianPosition = Cartesian3.fromDegrees(samplePosition.longitude, samplePosition.latitude, altitudeMeters);
+            trailPositionsDictionary.get(satelliteName)?.push(cartesianPosition);
+        }
+    }
+
+
+    //the function updates the map with the list of points for the orbit of the selected satellite.
+    return trailPositionsDictionary;
+
+}
