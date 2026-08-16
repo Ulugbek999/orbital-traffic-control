@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     GeographicTilingScheme,
     ImageryLayer,
@@ -22,10 +22,13 @@ import {
     calculateSatelliteOrbit,
 } from "../lib/orbit";
 
-import { SATELLITES } from "../lib/satellites";
-
 import "cesium/Build/Cesium/Widgets/widgets.css";
+
+import { SATELLITES } from "../lib/satellites";
 import { SatRec } from "satellite.js";
+import PromptModal from "./PromptModal";
+
+
 
 
 // const TLE_DATA_Dictionary = TLE_DATA();
@@ -70,6 +73,9 @@ for(const satellite of SATELLITES){
 export default function CesiumGlobe() { 
 
     const cesiumContainer = useRef<HTMLDivElement>(null);
+    const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
+
+
 
 
     useEffect(() => {
@@ -374,6 +380,37 @@ export default function CesiumGlobe() {
 
     }, []);
 
-    return <div ref={cesiumContainer} className="h-screen w-screen" />
+    // return <div ref={cesiumContainer} className="h-screen w-screen" />
+    return (
+        <div className="relative h-screen w-screen">
 
+            {/* Cesium still fills the entire screen */}
+
+            <div
+                ref={cesiumContainer}
+                className="h-full w-full"
+            />
+
+            <button
+                onClick={() => setIsAddSatelliteOpen(true)}
+                className="absolute top-6 left-6 z-40 rounded border border-cyan-500/50 bg-black/80 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950"
+            >
+                + Add Satellite
+            </button>
+
+            <PromptModal
+                title="Add Satellite"
+                label="NORAD Catalog Number"
+                placeholder="Example: 20580"
+                submitText="Add Satellite"
+                isOpen={isAddSatelliteOpen}
+                onClose={() => {
+                    setIsAddSatelliteOpen(false);
+                }}
+                onSubmit={(value) => {
+                    console.log("NORAD ID:", value);
+                }}
+            />
+        </div>
+    )
 }
