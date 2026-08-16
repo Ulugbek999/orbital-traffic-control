@@ -12,7 +12,7 @@ import {
     Viewer,
     CallbackPositionProperty,
     JulianDate,
-    getImagePixels, //Let's an entity calculate a new position whenever cesium needs to render it
+    //getImagePixels, //Let's an entity calculate a new position whenever cesium needs to render it
 } from "cesium";
 
 //Importing our own orbital calculation functions
@@ -22,39 +22,49 @@ import {
     calculateSatelliteOrbit,
 } from "../lib/orbit";
 
-import { TLE_DATA } from "../lib/satellites";
+import { SATELLITES } from "../lib/satellites";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { resumePluginState } from "next/dist/build/build-context";
-import { off } from "node:process";
 import { SatRec } from "satellite.js";
 
 
-const TLE_DATA_Dictionary = TLE_DATA();
+// const TLE_DATA_Dictionary = TLE_DATA();
 
-//The ISS TLE lines from CelesTrak, hardcoded for now.
-const ISS_TLE_LINE_1 = TLE_DATA_Dictionary.ISS_TLE_LINE_1;
-const ISS_TLE_LINE_2 = TLE_DATA_Dictionary.ISS_TLE_LINE_2;
+// //The ISS TLE lines from CelesTrak, hardcoded for now.
+// const ISS_TLE_LINE_1 = TLE_DATA_Dictionary.ISS_TLE_LINE_1;
+// const ISS_TLE_LINE_2 = TLE_DATA_Dictionary.ISS_TLE_LINE_2;
 
-//Hubble:
-const Hubble_TLE_LINE_1 = TLE_DATA_Dictionary.Hubble_TLE_LINE_1;
-const Hubble_TLE_LINE_2 = TLE_DATA_Dictionary.Hubble_TLE_LINE_2;
+// //Hubble:
+// const Hubble_TLE_LINE_1 = TLE_DATA_Dictionary.Hubble_TLE_LINE_1;
+// const Hubble_TLE_LINE_2 = TLE_DATA_Dictionary.Hubble_TLE_LINE_2;
 
-//TIANHE
-const Tianhe_TLE_LINE_1 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_1;
-const Tianhe_TLE_LINE_2 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_2;
+// //TIANHE
+// const Tianhe_TLE_LINE_1 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_1;
+// const Tianhe_TLE_LINE_2 = TLE_DATA_Dictionary.TIANHE_TLE_LINE_2;
+
+
+
+// //Creating satellite records:
+// const satelliteRecords: Map<string, SatRec> = new Map();
+
+// //creating satellite records for different satellites
+// satelliteRecords.set("ISS", createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2));
+// satelliteRecords.set("CSS Tianhe", createSatelliteRecord(Tianhe_TLE_LINE_1, Tianhe_TLE_LINE_2));
+// satelliteRecords.set("Hubble", createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2));
 
 
 
 //Creating satellite records:
 const satelliteRecords: Map<string, SatRec> = new Map();
 
-//creating satellite records for different satellites
-satelliteRecords.set("ISS", createSatelliteRecord(ISS_TLE_LINE_1, ISS_TLE_LINE_2));
-satelliteRecords.set("CSS Tianhe", createSatelliteRecord(Tianhe_TLE_LINE_1, Tianhe_TLE_LINE_2));
-satelliteRecords.set("Hubble", createSatelliteRecord(Hubble_TLE_LINE_1, Hubble_TLE_LINE_2));
+for(const satellite of SATELLITES){
 
+    //creating an individual satellite record
+    const satelliteRecord = createSatelliteRecord(satellite.tleLine1, satellite.tleLine2);
 
+    //storing a key -> value for a satellite name + record.
+    satelliteRecords.set(satellite.name, satelliteRecord);
+}
 
 
 export default function CesiumGlobe() { 
@@ -115,15 +125,23 @@ export default function CesiumGlobe() {
 
 
         const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+
         
-        //adding a list for the ISS
-        trailPositionsDictionary.set("ISS", calculateSatelliteOrbit(getSatelliteRecord("ISS"), trailCenterTime));
+        // //adding a list for the ISS
+        // trailPositionsDictionary.set("ISS", calculateSatelliteOrbit(getSatelliteRecord("ISS"), trailCenterTime));
 
-        //Adding a list for the Hubble:
-        trailPositionsDictionary.set("Hubble", calculateSatelliteOrbit(getSatelliteRecord("Hubble"), trailCenterTime));
+        // //Adding a list for the Hubble:
+        // trailPositionsDictionary.set("Hubble", calculateSatelliteOrbit(getSatelliteRecord("Hubble"), trailCenterTime));
 
-        //Adding a list for the CSS Tianhe
-        trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
+        // //Adding a list for the CSS Tianhe
+        // trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
+
+        for(const [satelliteName, satelliteRecord] of satelliteRecords.entries()){
+            const trailPositions = calculateSatelliteOrbit(satelliteRecord, trailCenterTime);
+            trailPositionsDictionary.set(satelliteName, trailPositions);
+        }
+
+
 
         //Dynamic Satellie Positions
         const dynamicSatellitePositions: Map<string, CallbackPositionProperty> = new Map();
@@ -159,137 +177,171 @@ export default function CesiumGlobe() {
         // //now converting the normal earth coordinates into cesium's internal 3D cartesian system
         // const issPosition = Cartesian3.fromDegrees(issLongitude, issLatitude, issAltitudeMeters);
 
-        //adding a new entity to the Cesium's scene
-        const issEntity = viewer.entities.add({
-            name: "ISS (ZARYA)",
-            position: dynamicSatellitePositions.get("ISS"),
-            point: {
-                // Marker diameter in pixels.
-                pixelSize: 12,
-
-                // Make the ISS marker bright white.
-                color: Color.WHITE,
-
-                // Add a darker outline around it so it remains visible
-                // over both bright and dark parts of Earth.
-                outlineColor: Color.BLACK,
-
-                // Width of the marker outline.
-                outlineWidth: 2,
-            },
-
-            // Add text next to the point.
-            label: {
-
-                // Text shown beside the satellite.
-                text: "ISS",
-
-                // Move the text slightly above the marker
-                // instead of centering it directly over the dot.
-                verticalOrigin: VerticalOrigin.BOTTOM,
-
-                // Add some space between the marker and text.
-                pixelOffset: new Cartesian2(0, -10),
-
-                // Make the text white.
-                fillColor: Color.WHITE,
-
-                // Give the text a black outline for readability.
-                outlineColor: Color.BLACK,
-
-                // Width of the text outline.
-                outlineWidth: 2,
-            },
-
-        });
 
 
-        //adding a viewer for the hubble:
-        const hubbleEntity = viewer.entities.add({
-            name: "Hubble",
-            position: dynamicSatellitePositions.get("Hubble"),
-            point: {
-                // Marker diameter in pixels.
-                pixelSize: 12,
+        for (const satellite of SATELLITES){
 
-                // Make the ISS marker bright white.
-                color: Color.WHITE,
+            const dynamicPosition = dynamicSatellitePositions.get(satellite.name);
 
-                // Add a darker outline around it so it remains visible
-                // over both bright and dark parts of Earth.
-                outlineColor: Color.BLACK,
+            if(dynamicPosition === undefined){
+                throw new Error(`Dynamic position does not exist for ${satellite.name}`);
+            }
 
-                // Width of the marker outline.
-                outlineWidth: 2,
-            },
+            viewer.entities.add({
+                name: satellite.name,
+                position: dynamicPosition,
+                point: {
+                    pixelSize: 12,
+                    color: Color.WHITE,
+                    outlineColor: Color.BLACK,
+                    outlineWidth: 2,
+                },
+                label: {
+                    text: satellite.name,
+                    verticalOrigin: VerticalOrigin.BOTTOM,
+                    pixelOffset: new Cartesian2(0, -10),
 
-            // Add text next to the point.
-            label: {
+                    fillColor: Color.WHITE,
+                    outlineColor: Color.BLACK,
+                    outlineWidth: 2,
+                }
+            })
+        }
 
-                // Text shown beside the satellite.
-                text: "Hubble",
 
-                // Move the text slightly above the marker
-                // instead of centering it directly over the dot.
-                verticalOrigin: VerticalOrigin.BOTTOM,
 
-                // Add some space between the marker and text.
-                pixelOffset: new Cartesian2(0, -10),
 
-                // Make the text white.
-                fillColor: Color.ALICEBLUE,
+        // //adding a new entity to the Cesium's scene
+        // const issEntity = viewer.entities.add({
+        //     name: "ISS (ZARYA)",
+        //     position: dynamicSatellitePositions.get("ISS"),
+        //     point: {
+        //         // Marker diameter in pixels.
+        //         pixelSize: 12,
 
-                // Give the text a black outline for readability.
-                outlineColor: Color.BLACK,
+        //         // Make the ISS marker bright white.
+        //         color: Color.WHITE,
 
-                // Width of the text outline.
-                outlineWidth: 2,
-            },
+        //         // Add a darker outline around it so it remains visible
+        //         // over both bright and dark parts of Earth.
+        //         outlineColor: Color.BLACK,
+
+        //         // Width of the marker outline.
+        //         outlineWidth: 2,
+        //     },
+
+        //     // Add text next to the point.
+        //     label: {
+
+        //         // Text shown beside the satellite.
+        //         text: "ISS",
+
+        //         // Move the text slightly above the marker
+        //         // instead of centering it directly over the dot.
+        //         verticalOrigin: VerticalOrigin.BOTTOM,
+
+        //         // Add some space between the marker and text.
+        //         pixelOffset: new Cartesian2(0, -10),
+
+        //         // Make the text white.
+        //         fillColor: Color.WHITE,
+
+        //         // Give the text a black outline for readability.
+        //         outlineColor: Color.BLACK,
+
+        //         // Width of the text outline.
+        //         outlineWidth: 2,
+        //     },
+
+        // });
+
+
+        // //adding a viewer for the hubble:
+        // const hubbleEntity = viewer.entities.add({
+        //     name: "Hubble",
+        //     position: dynamicSatellitePositions.get("Hubble"),
+        //     point: {
+        //         // Marker diameter in pixels.
+        //         pixelSize: 12,
+
+        //         // Make the ISS marker bright white.
+        //         color: Color.WHITE,
+
+        //         // Add a darker outline around it so it remains visible
+        //         // over both bright and dark parts of Earth.
+        //         outlineColor: Color.BLACK,
+
+        //         // Width of the marker outline.
+        //         outlineWidth: 2,
+        //     },
+
+        //     // Add text next to the point.
+        //     label: {
+
+        //         // Text shown beside the satellite.
+        //         text: "Hubble",
+
+        //         // Move the text slightly above the marker
+        //         // instead of centering it directly over the dot.
+        //         verticalOrigin: VerticalOrigin.BOTTOM,
+
+        //         // Add some space between the marker and text.
+        //         pixelOffset: new Cartesian2(0, -10),
+
+        //         // Make the text white.
+        //         fillColor: Color.ALICEBLUE,
+
+        //         // Give the text a black outline for readability.
+        //         outlineColor: Color.BLACK,
+
+        //         // Width of the text outline.
+        //         outlineWidth: 2,
+        //     },
  
-        })
+        // })
 
-        //a viewer for the Tianhe
-        const tianheEntity = viewer.entities.add({
-            name: "CSS (TIANHE)",
-            position: dynamicSatellitePositions.get("CSS Tianhe"),
-            point: {
-                // Marker diameter in pixels.
-                pixelSize: 12,
+        // //a viewer for the Tianhe
+        // const tianheEntity = viewer.entities.add({
+        //     name: "CSS (TIANHE)",
+        //     position: dynamicSatellitePositions.get("CSS Tianhe"),
+        //     point: {
+        //         // Marker diameter in pixels.
+        //         pixelSize: 12,
 
-                // Make the ISS marker bright white.
-                color: Color.WHITE,
+        //         // Make the ISS marker bright white.
+        //         color: Color.WHITE,
 
-                // Add a darker outline around it so it remains visible
-                // over both bright and dark parts of Earth.
-                outlineColor: Color.BLACK,
+        //         // Add a darker outline around it so it remains visible
+        //         // over both bright and dark parts of Earth.
+        //         outlineColor: Color.BLACK,
 
-                // Width of the marker outline.
-                outlineWidth: 2,
-            },
+        //         // Width of the marker outline.
+        //         outlineWidth: 2,
+        //     },
 
-            // Add text next to the point.
-            label: {
+        //     // Add text next to the point.
+        //     label: {
 
-                // Text shown beside the satellite.
-                text: "CSS Tianhe",
+        //         // Text shown beside the satellite.
+        //         text: "CSS Tianhe",
 
-                // Move the text slightly above the marker
-                // instead of centering it directly over the dot.
-                verticalOrigin: VerticalOrigin.BOTTOM,
+        //         // Move the text slightly above the marker
+        //         // instead of centering it directly over the dot.
+        //         verticalOrigin: VerticalOrigin.BOTTOM,
 
-                // Add some space between the marker and text.
-                pixelOffset: new Cartesian2(0, -10),
+        //         // Add some space between the marker and text.
+        //         pixelOffset: new Cartesian2(0, -10),
 
-                // Make the text white.
-                fillColor: Color.ALICEBLUE,
+        //         // Make the text white.
+        //         fillColor: Color.ALICEBLUE,
 
-                // Give the text a black outline for readability.
-                outlineColor: Color.BLACK,
+        //         // Give the text a black outline for readability.
+        //         outlineColor: Color.BLACK,
 
-                // Width of the text outline.
-                outlineWidth: 2,
-            },
-        })
+        //         // Width of the text outline.
+        //         outlineWidth: 2,
+        //     },
+        // })
 
 
 
