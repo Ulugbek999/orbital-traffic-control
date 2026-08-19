@@ -72,8 +72,19 @@ for(const satellite of SATELLITES){
 
 export default function CesiumGlobe() { 
 
+
+    // HOOKS:
+
     const cesiumContainer = useRef<HTMLDivElement>(null);
+    
+    //for the viewer to notice a newly added satellite
+    const viewerRef = useRef<Viewer | null>(null);
+
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
+
+    //is going to update the satellites list everytime we add a new satellite.
+    const [satellites, setSatellites] = useState(SATELLITES);
+
 
 
 
@@ -101,6 +112,9 @@ export default function CesiumGlobe() {
             navigationHelpButton: false,
             fullscreenButton: false,
         });
+
+
+        viewerRef.current = viewer;
 
 
 
@@ -375,6 +389,7 @@ export default function CesiumGlobe() {
 
         return() => {
             viewer.destroy();
+            viewerRef.current = null;
         };
 
 
@@ -415,7 +430,73 @@ export default function CesiumGlobe() {
 
                     console.log("Server response: ", data);
 
+                    //Adding a new satellite to React state
+                    setSatellites(previousSatellites => [...previousSatellites, data]);
+
+                    //Creating teh satellite.js SatRec
+                    const satelliteRecord = createSatelliteRecord(data.tleLine1, data.tleLine2);
+                    
+                    //Storing the new satellite in our records map
+                    satelliteRecords.set(data.name, satelliteRecord);
+
+
+                    const viewer = viewerRef.current;
+
+                    if(!viewer) {
+                        throw new Error("Cesium viewer does not exist.");
+                    }
+
                     //console.log("NORAD ID:", value);
+
+                    const dynamicPosition = new CallbackPositionProperty(
+                        (time, result) => {
+                            const currentTime = time ?? JulianDate.now();
+
+                            const date = JulianDate.toDate(currentTime);
+
+                            const position = calculateSatellitePosition(
+                                satelliteRecord,
+                                date
+                            );
+
+                            if (position === null) {
+                                return undefined;
+                            }
+
+                            const altitudeMeters = position.altitudekm * 1000;
+
+                            return Cartesian3.fromDegrees(
+                                position.longitude,
+                                position.latitude,
+                                altitudeMeters,
+                                undefined,
+                                result
+                            );
+                        }, 
+                        false
+                    )
+
+                    viewer.entities.add({
+                        name: data.name,
+                        position: dynamicPosition,
+
+                        point: {
+                            pixelSize: 12,
+                            color: Color.WHITE,
+                            outlineColor: Color.BLACK,
+                            outlineWidth: 2,
+                        },
+
+                        label: {
+                            text: data.name,
+                            verticalOrigin: VerticalOrigin.BOTTOM,
+                            pixelOffset: new Cartesian2(0, -10),
+                            fillColor: Color.WHITE,
+                            outlineColor: Color.BLACK,
+                            outlineWidth: 2,
+                        }
+                    });
+
                 }}
             />
         </div>
