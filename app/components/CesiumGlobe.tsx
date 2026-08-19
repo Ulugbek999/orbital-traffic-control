@@ -407,8 +407,15 @@ export default function CesiumGlobe() {
                 onClose={() => {
                     setIsAddSatelliteOpen(false);
                 }}
-                onSubmit={(value) => {
-                    console.log("NORAD ID:", value);
+                onSubmit={async (value) => {
+
+                    const response = await fetch("/api/satellites", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({noradId: value})});
+                    
+                    const data = await response.json();
+
+                    console.log("Server response: ", data);
+
+                    //console.log("NORAD ID:", value);
                 }}
             />
         </div>

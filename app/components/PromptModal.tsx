@@ -33,7 +33,7 @@ export default function PromptModal({title, label, placeholder = "", submitText 
     const [value, setValue] = useState("");
 
     //if the parent says the modal is closed, render absolutely nothing
-    if(!isOpen){return null;}
+    if(!isOpen){return null;} //This is used to show/hide the modal
 
 
     function handleSubmit(){
