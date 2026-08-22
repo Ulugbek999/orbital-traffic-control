@@ -24,7 +24,7 @@ import {
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-import { SATELLITES } from "../lib/satellites";
+import { getSatellites } from "../lib/satellites";
 import { SatRec } from "satellite.js";
 import PromptModal from "./PromptModal";
 
@@ -58,16 +58,18 @@ import PromptModal from "./PromptModal";
 
 
 //Creating satellite records:
-const satelliteRecords: Map<string, SatRec> = new Map();
+// const satelliteRecords: Map<string, SatRec> = new Map();
 
-for(const satellite of SATELLITES){
+// const satellites = getSatellites();
 
-    //creating an individual satellite record
-    const satelliteRecord = createSatelliteRecord(satellite.tleLine1, satellite.tleLine2);
+// for(const satellite of await satellites){
 
-    //storing a key -> value for a satellite name + record.
-    satelliteRecords.set(satellite.name, satelliteRecord);
-}
+//     //creating an individual satellite record
+//     const satelliteRecord = createSatelliteRecord(satellite.tleLine1, satellite.tleLine2);
+
+//     //storing a key -> value for a satellite name + record.
+//     satelliteRecords.set(satellite.name, satelliteRecord);
+// }
 
 
 export default function CesiumGlobe() { 
@@ -77,20 +79,124 @@ export default function CesiumGlobe() {
 
     const cesiumContainer = useRef<HTMLDivElement>(null);
     
-    //for the viewer to notice a newly added satellite
-    const viewerRef = useRef<Viewer | null>(null);
+    // //for the viewer to notice a newly added satellite
+    // const viewerRef = useRef<Viewer | null>(null);
 
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
 
-    //is going to update the satellites list everytime we add a new satellite.
-    const [satellites, setSatellites] = useState(SATELLITES);
-
-
-
-
 
     useEffect(() => {
+
         if(!cesiumContainer.current) return;
+
+        async function initializeCesium() {
+            //Getting the actual satellite array from the API:
+            const satellites = await getSatellites();
+
+            //Creating the satellite.js records;
+            const satelliteRecords: Map<string, SatRec> = new Map();
+
+            for (const satellite of satellites){
+                const satelliteRecord = createSatelliteRecord(satellite.tleLine1, satellite.tleLine2);
+                
+                satelliteRecords.set(satellite.name, satelliteRecord);
+            }
+
+            console.log("SATELLITES: ", satellites);
+            console.log("SATELLITE RECORDS: ", satelliteRecords);
+
+
+            for(const [satelliteName, satelliteRecord] of satelliteRecords.entries()){
+                const trailPositions = calculateSatelliteOrbit(satelliteRecord, trailCenterTime);
+                trailPositionsDictionary.set(satelliteName, trailPositions);
+            }
+
+            //Dynamic Satellie Positions
+            const dynamicSatellitePositions: Map<string, CallbackPositionProperty> = new Map();
+
+            for (const [key, value] of satelliteRecords.entries()){
+
+                dynamicSatellitePositions.set(key, 
+
+                    //we need to use the CallbackPositonProperty to create dynamic positions for our satellites
+                    new CallbackPositionProperty(
+                        (time, result) => {
+
+                            const currentTime = time ?? JulianDate.now();
+
+                            const date = JulianDate.toDate(currentTime);
+
+                            const position = calculateSatellitePosition(value, date);
+
+                            if(position === null) {
+                                return undefined;
+                            }
+
+                            const altitudeMeteres = position.altitudekm * 1000;
+
+                            return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
+                        },
+                        false, //tells the callback that the position changes over time.
+                    )
+                )
+            }
+
+
+
+            // //now converting the normal earth coordinates into cesium's internal 3D cartesian system
+            // const issPosition = Cartesian3.fromDegrees(issLongitude, issLatitude, issAltitudeMeters);
+
+
+            for (const satellite of satellites){
+
+                const dynamicPosition = dynamicSatellitePositions.get(satellite.name);
+
+                if(dynamicPosition === undefined){
+                    throw new Error(`Dynamic position does not exist for ${satellite.name}`);
+                }
+
+                viewer.entities.add({
+                    name: satellite.name,
+                    position: dynamicPosition,
+                    point: {
+                        pixelSize: 12,
+                        color: Color.WHITE,
+                        outlineColor: Color.BLACK,
+                        outlineWidth: 2,
+                    },
+                    label: {
+                        text: satellite.name,
+                        verticalOrigin: VerticalOrigin.BOTTOM,
+                        pixelOffset: new Cartesian2(0, -10),
+
+                        fillColor: Color.WHITE,
+                        outlineColor: Color.BLACK,
+                        outlineWidth: 2,
+                    }
+                })
+            }  
+            
+            
+    
+            //viewer.flyTo(issEntity);
+
+            for(const [key, value] of trailPositionsDictionary.entries()){
+
+                viewer.entities.add({
+                    name: key + " Orbit",
+                    polyline: {
+                        positions: value,
+                        width: 2,
+                        material: Color.CYAN,
+                    }
+                })
+
+
+            }        
+
+
+        }
+
 
         //Telling Cesium where we copied its Workers/Assets/etc.
         window.CESIUM_BASE_URL = "/cesium/";
@@ -113,31 +219,15 @@ export default function CesiumGlobe() {
             fullscreenButton: false,
         });
 
-
-        viewerRef.current = viewer;
-
-
-
-
-
         //setting the simulation clock time to real-world time
         viewer.clock.currentTime = JulianDate.now();
         
         viewer.clock.shouldAnimate = true;
         
+
+
         //to speed up the simulation(100x);
         //viewer.clock.multiplier = 100;
-
-        //helper to bypass the "undefined error for the SatRec"
-        function getSatelliteRecord(name: string): SatRec {
-            const record = satelliteRecords.get(name);
-
-            if(record === undefined){
-                throw new Error("Satellite record does not exist.");
-            }
-
-            return record;
-        }
 
 
         //Adding a trail for the satellites
@@ -145,6 +235,8 @@ export default function CesiumGlobe() {
 
 
         const trailPositionsDictionary: Map<string, Cartesian3[]> = new Map();
+
+        initializeCesium();
 
         
         // //adding a list for the ISS
@@ -156,246 +248,25 @@ export default function CesiumGlobe() {
         // //Adding a list for the CSS Tianhe
         // trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
 
-        for(const [satelliteName, satelliteRecord] of satelliteRecords.entries()){
-            const trailPositions = calculateSatelliteOrbit(satelliteRecord, trailCenterTime);
-            trailPositionsDictionary.set(satelliteName, trailPositions);
-        }
-
-
-
-        //Dynamic Satellie Positions
-        const dynamicSatellitePositions: Map<string, CallbackPositionProperty> = new Map();
-
-        for (const [key, value] of satelliteRecords.entries()){
-
-            dynamicSatellitePositions.set(key, 
-
-                //we need to use the CallbackPositonProperty to create dynamic positions for our satellites
-                new CallbackPositionProperty(
-                    (time, result) => {
-
-                        const currentTime = time ?? JulianDate.now();
-
-                        const date = JulianDate.toDate(currentTime);
-
-                        const position = calculateSatellitePosition(value, date);
-
-                        if(position === null) {
-                            return undefined;
-                        }
-
-                        const altitudeMeteres = position.altitudekm * 1000;
-
-                        return Cartesian3.fromDegrees(position.longitude, position.latitude, altitudeMeteres, undefined, result);
-                    },
-                    false, //tells the callback that the position changes over time.
-                )
-            )
-        }
-
-
-        // //now converting the normal earth coordinates into cesium's internal 3D cartesian system
-        // const issPosition = Cartesian3.fromDegrees(issLongitude, issLatitude, issAltitudeMeters);
-
-
-
-        for (const satellite of SATELLITES){
-
-            const dynamicPosition = dynamicSatellitePositions.get(satellite.name);
-
-            if(dynamicPosition === undefined){
-                throw new Error(`Dynamic position does not exist for ${satellite.name}`);
-            }
-
-            viewer.entities.add({
-                name: satellite.name,
-                position: dynamicPosition,
-                point: {
-                    pixelSize: 12,
-                    color: Color.WHITE,
-                    outlineColor: Color.BLACK,
-                    outlineWidth: 2,
-                },
-                label: {
-                    text: satellite.name,
-                    verticalOrigin: VerticalOrigin.BOTTOM,
-                    pixelOffset: new Cartesian2(0, -10),
-
-                    fillColor: Color.WHITE,
-                    outlineColor: Color.BLACK,
-                    outlineWidth: 2,
-                }
-            })
-        }
-
-
-
-
-        // //adding a new entity to the Cesium's scene
-        // const issEntity = viewer.entities.add({
-        //     name: "ISS (ZARYA)",
-        //     position: dynamicSatellitePositions.get("ISS"),
-        //     point: {
-        //         // Marker diameter in pixels.
-        //         pixelSize: 12,
-
-        //         // Make the ISS marker bright white.
-        //         color: Color.WHITE,
-
-        //         // Add a darker outline around it so it remains visible
-        //         // over both bright and dark parts of Earth.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the marker outline.
-        //         outlineWidth: 2,
-        //     },
-
-        //     // Add text next to the point.
-        //     label: {
-
-        //         // Text shown beside the satellite.
-        //         text: "ISS",
-
-        //         // Move the text slightly above the marker
-        //         // instead of centering it directly over the dot.
-        //         verticalOrigin: VerticalOrigin.BOTTOM,
-
-        //         // Add some space between the marker and text.
-        //         pixelOffset: new Cartesian2(0, -10),
-
-        //         // Make the text white.
-        //         fillColor: Color.WHITE,
-
-        //         // Give the text a black outline for readability.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the text outline.
-        //         outlineWidth: 2,
-        //     },
-
-        // });
-
-
-        // //adding a viewer for the hubble:
-        // const hubbleEntity = viewer.entities.add({
-        //     name: "Hubble",
-        //     position: dynamicSatellitePositions.get("Hubble"),
-        //     point: {
-        //         // Marker diameter in pixels.
-        //         pixelSize: 12,
-
-        //         // Make the ISS marker bright white.
-        //         color: Color.WHITE,
-
-        //         // Add a darker outline around it so it remains visible
-        //         // over both bright and dark parts of Earth.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the marker outline.
-        //         outlineWidth: 2,
-        //     },
-
-        //     // Add text next to the point.
-        //     label: {
-
-        //         // Text shown beside the satellite.
-        //         text: "Hubble",
-
-        //         // Move the text slightly above the marker
-        //         // instead of centering it directly over the dot.
-        //         verticalOrigin: VerticalOrigin.BOTTOM,
-
-        //         // Add some space between the marker and text.
-        //         pixelOffset: new Cartesian2(0, -10),
-
-        //         // Make the text white.
-        //         fillColor: Color.ALICEBLUE,
-
-        //         // Give the text a black outline for readability.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the text outline.
-        //         outlineWidth: 2,
-        //     },
- 
-        // })
-
-        // //a viewer for the Tianhe
-        // const tianheEntity = viewer.entities.add({
-        //     name: "CSS (TIANHE)",
-        //     position: dynamicSatellitePositions.get("CSS Tianhe"),
-        //     point: {
-        //         // Marker diameter in pixels.
-        //         pixelSize: 12,
-
-        //         // Make the ISS marker bright white.
-        //         color: Color.WHITE,
-
-        //         // Add a darker outline around it so it remains visible
-        //         // over both bright and dark parts of Earth.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the marker outline.
-        //         outlineWidth: 2,
-        //     },
-
-        //     // Add text next to the point.
-        //     label: {
-
-        //         // Text shown beside the satellite.
-        //         text: "CSS Tianhe",
-
-        //         // Move the text slightly above the marker
-        //         // instead of centering it directly over the dot.
-        //         verticalOrigin: VerticalOrigin.BOTTOM,
-
-        //         // Add some space between the marker and text.
-        //         pixelOffset: new Cartesian2(0, -10),
-
-        //         // Make the text white.
-        //         fillColor: Color.ALICEBLUE,
-
-        //         // Give the text a black outline for readability.
-        //         outlineColor: Color.BLACK,
-
-        //         // Width of the text outline.
-        //         outlineWidth: 2,
-        //     },
-        // })
-
-
-
 //--------------------------------------------------ORBITS------------------------------------------------------------------------//
 
 
-        //viewer.flyTo(issEntity);
-
-        for(const [key, value] of trailPositionsDictionary.entries()){
-
-            viewer.entities.add({
-                name: key + " Orbit",
-                polyline: {
-                    positions: value,
-                    width: 2,
-                    material: Color.CYAN,
-                }
-            })
-
-
-        }
 
 
 //----------------------------------------------------------------------------------------------------------------------------------//
 
         return() => {
             viewer.destroy();
-            viewerRef.current = null;
+            //viewerRef.current = null;
         };
 
 
     }, []);
 
-    // return <div ref={cesiumContainer} className="h-screen w-screen" />
+    //return <div ref={cesiumContainer} className="h-screen w-screen" />
+
+
+
     return (
         <div className="relative h-screen w-screen">
 
@@ -428,74 +299,84 @@ export default function CesiumGlobe() {
                     
                     const data = await response.json();
 
+
                     console.log("Server response: ", data);
 
-                    //Adding a new satellite to React state
-                    setSatellites(previousSatellites => [...previousSatellites, data]);
-
-                    //Creating teh satellite.js SatRec
-                    const satelliteRecord = createSatelliteRecord(data.tleLine1, data.tleLine2);
                     
-                    //Storing the new satellite in our records map
-                    satelliteRecords.set(data.name, satelliteRecord);
+                    //by this time the new satellite record should be saved in the database so trigger a reloard, so that we re-read the local database and add the
+                    //new satellite record.
 
 
-                    const viewer = viewerRef.current;
+                    //JUST TRIGGER A RELOAD HERE
+                    window.location.reload();
 
-                    if(!viewer) {
-                        throw new Error("Cesium viewer does not exist.");
-                    }
+
+                    // //Adding a new satellite to React state
+                    // setSatellites(previousSatellites => [...previousSatellites, data]);
+
+                    // //Creating teh satellite.js SatRec
+                    // const satelliteRecord = createSatelliteRecord(data.tleLine1, data.tleLine2);
+                    
+                    // //Storing the new satellite in our records map
+                    // satelliteRecords.set(data.name, satelliteRecord);
+
+
+                    // const viewer = viewerRef.current;
+
+                    // if(!viewer) {
+                    //     throw new Error("Cesium viewer does not exist.");
+                    // }
 
                     //console.log("NORAD ID:", value);
 
-                    const dynamicPosition = new CallbackPositionProperty(
-                        (time, result) => {
-                            const currentTime = time ?? JulianDate.now();
+                    // const dynamicPosition = new CallbackPositionProperty(
+                    //     (time, result) => {
+                    //         const currentTime = time ?? JulianDate.now();
 
-                            const date = JulianDate.toDate(currentTime);
+                    //         const date = JulianDate.toDate(currentTime);
 
-                            const position = calculateSatellitePosition(
-                                satelliteRecord,
-                                date
-                            );
+                    //         const position = calculateSatellitePosition(
+                    //             satelliteRecord,
+                    //             date
+                    //         );
 
-                            if (position === null) {
-                                return undefined;
-                            }
+                    //         if (position === null) {
+                    //             return undefined;
+                    //         }
 
-                            const altitudeMeters = position.altitudekm * 1000;
+                    //         const altitudeMeters = position.altitudekm * 1000;
 
-                            return Cartesian3.fromDegrees(
-                                position.longitude,
-                                position.latitude,
-                                altitudeMeters,
-                                undefined,
-                                result
-                            );
-                        }, 
-                        false
-                    )
+                    //         return Cartesian3.fromDegrees(
+                    //             position.longitude,
+                    //             position.latitude,
+                    //             altitudeMeters,
+                    //             undefined,
+                    //             result
+                    //         );
+                    //     }, 
+                    //     false
+                    // )
 
-                    viewer.entities.add({
-                        name: data.name,
-                        position: dynamicPosition,
+                    // viewer.entities.add({
+                    //     name: data.name,
+                    //     position: dynamicPosition,
 
-                        point: {
-                            pixelSize: 12,
-                            color: Color.WHITE,
-                            outlineColor: Color.BLACK,
-                            outlineWidth: 2,
-                        },
+                    //     point: {
+                    //         pixelSize: 12,
+                    //         color: Color.WHITE,
+                    //         outlineColor: Color.BLACK,
+                    //         outlineWidth: 2,
+                    //     },
 
-                        label: {
-                            text: data.name,
-                            verticalOrigin: VerticalOrigin.BOTTOM,
-                            pixelOffset: new Cartesian2(0, -10),
-                            fillColor: Color.WHITE,
-                            outlineColor: Color.BLACK,
-                            outlineWidth: 2,
-                        }
-                    });
+                    //     label: {
+                    //         text: data.name,
+                    //         verticalOrigin: VerticalOrigin.BOTTOM,
+                    //         pixelOffset: new Cartesian2(0, -10),
+                    //         fillColor: Color.WHITE,
+                    //         outlineColor: Color.BLACK,
+                    //         outlineWidth: 2,
+                    //     }
+                    // });
 
                 }}
             />
