@@ -6,6 +6,20 @@ A real-time 3D satellite visualization project built with **Next.js, TypeScript,
 
 Orbital Traffic Control uses real orbital data from **CelesTrak** and SGP4 propagation to calculate satellite positions over time and render them around an interactive 3D Earth.
 
+
+# UPCOMING FEATURES
+
+* A button to accelerate or slow down the simulation
+* Ability to remove a satellite
+* Satellite information pops up when clicked on the satellite
+* Navigator that locates your position on the map
+* Calculator that shows the next date and time a satellite will be flying above your head
+* Ability to show/hid a selected satellites orbit
+* An error modal/component that shows basic errors when they happen
+
+
+
+
 ## Features
 
 * Interactive 3D Earth powered by CesiumJS
