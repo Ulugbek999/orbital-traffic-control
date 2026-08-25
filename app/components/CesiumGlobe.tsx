@@ -79,10 +79,22 @@ export default function CesiumGlobe() {
 
     const cesiumContainer = useRef<HTMLDivElement>(null);
     
-    // //for the viewer to notice a newly added satellite
-    // const viewerRef = useRef<Viewer | null>(null);
+    // //for the viewer to notice simulation time chagne
+    const viewerRef = useRef<Viewer | null>(null);
 
+    //useStates
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
+    const [simulationTime, setSimulationTime] = useState(1);
+
+    //let simulationSpeed = simulationTime;
+
+
+    // function changeSimulationTimeFaster(value: number){
+
+    //     viewer.clock.multiplier += value;
+
+
+    // }
 
 
     useEffect(() => {
@@ -174,8 +186,11 @@ export default function CesiumGlobe() {
                         outlineWidth: 2,
                     }
                 })
+
+                
             }  
             
+
             
     
             //viewer.flyTo(issEntity);
@@ -227,8 +242,8 @@ export default function CesiumGlobe() {
 
 
         //to speed up the simulation(100x);
-        //viewer.clock.multiplier = 100;
-
+        //viewer.clock.multiplier *= simulationTime;
+        viewerRef.current = viewer;
 
         //Adding a trail for the satellites
         const trailCenterTime = JulianDate.toDate(viewer.clock.currentTime);
@@ -283,6 +298,50 @@ export default function CesiumGlobe() {
             >
                 + Add Satellite
             </button>
+
+            <div>
+                <p>Simulation time = {simulationTime % 10 != 0 ? simulationTime - 1 : simulationTime}</p>
+
+                <button onClick={() => {
+                    setSimulationTime(simulationTime + 10);
+                    if(simulationTime > 100){
+                        setSimulationTime(100);
+                    }
+
+                    if(viewerRef.current != null){
+                        viewerRef.current.clock.multiplier = simulationTime;
+                    }
+
+                }}
+                className=""
+                
+                >Faster</button>
+
+                <button onClick={() => {
+
+                    setSimulationTime(simulationTime - 10);
+                    if(simulationTime <= 1){
+                        setSimulationTime(1);
+                    }
+
+                    if(viewerRef.current != null){
+                        viewerRef.current.clock.multiplier = simulationTime;
+                    }
+
+                }}
+                
+                >Slower</button>
+
+                <button onClick={() => {
+
+                }}>
+
+                    Reset to current time
+                </button>
+
+            </div>
+
+
 
             <PromptModal
                 title="Add Satellite"
