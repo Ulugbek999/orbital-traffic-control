@@ -292,54 +292,66 @@ export default function CesiumGlobe() {
                 className="h-full w-full"
             />
 
-            <button
-                onClick={() => setIsAddSatelliteOpen(true)}
-                className="absolute top-6 left-6 z-40 rounded border border-cyan-500/50 bg-black/80 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950"
-            >
-                + Add Satellite
-            </button>
+            {/* A container for the buttons on the left side of the screen */}
+            <div className="absolute top-6 left-6 z-40">
 
-            <div>
-                <p>Simulation time = {simulationTime % 10 != 0 ? simulationTime - 1 : simulationTime}</p>
-
-                <button onClick={() => {
-                    setSimulationTime(simulationTime + 10);
-                    if(simulationTime > 100){
-                        setSimulationTime(100);
-                    }
-
-                    if(viewerRef.current != null){
-                        viewerRef.current.clock.multiplier = simulationTime;
-                    }
-
-                }}
-                className=""
-                
-                >Faster</button>
-
-                <button onClick={() => {
-
-                    setSimulationTime(simulationTime - 10);
-                    if(simulationTime <= 1){
-                        setSimulationTime(1);
-                    }
-
-                    if(viewerRef.current != null){
-                        viewerRef.current.clock.multiplier = simulationTime;
-                    }
-
-                }}
-                
-                >Slower</button>
-
-                <button onClick={() => {
-
-                }}>
-
-                    Reset to current time
+                <button
+                    onClick={() => setIsAddSatelliteOpen(true)}
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950"
+                >
+                    + Add Satellite
                 </button>
 
+                <div>
+
+                    <button onClick={() => {
+                        setSimulationTime(simulationTime + 10);
+                        if(simulationTime >= 100){
+                            setSimulationTime(100);
+                        }
+
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.multiplier = simulationTime;
+                        }
+
+                    }}
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 mt-2"
+                    
+                    >Faster</button>
+
+                    <button onClick={() => {
+
+                        setSimulationTime(simulationTime - 10);
+                        if(simulationTime <= 1){
+                            setSimulationTime(1);
+                        }
+
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.multiplier = simulationTime;
+                        }
+
+                    }}
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 ml-2"
+                    
+                    >Slower</button>
+
+                    <button onClick={() => {
+
+                    }}>
+
+                        Reset
+                    </button>
+
+
+                    <p className="text-sm text-white mt-2">Simulation time: {simulationTime % 10 != 0 ? simulationTime - 1 : simulationTime}</p>
+
+
+                </div>
+
             </div>
+
+
+
 
 
 

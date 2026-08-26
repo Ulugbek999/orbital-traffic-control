@@ -9,7 +9,9 @@ Orbital Traffic Control uses real orbital data from **CelesTrak** and SGP4 propa
 
 # UPCOMING FEATURES
 
-* A button to accelerate or slow down the simulation
+* A button to accelerate or slow down the simulation - Done
+* A button to bring the satellites and the simulation back to the real time
+* A clock that shows the current date/time and changes dynamically when we accelerate or slow down the simulation
 * Ability to remove a satellite
 * Satellite information pops up when clicked on the satellite
 * Navigator that locates your position on the map
