@@ -79,10 +79,22 @@ export default function CesiumGlobe() {
 
     const cesiumContainer = useRef<HTMLDivElement>(null);
     
-    // //for the viewer to notice a newly added satellite
-    // const viewerRef = useRef<Viewer | null>(null);
+    // //for the viewer to notice simulation time chagne
+    const viewerRef = useRef<Viewer | null>(null);
 
+    //useStates
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
+    const [simulationTime, setSimulationTime] = useState(1);
+
+    //let simulationSpeed = simulationTime;
+
+
+    // function changeSimulationTimeFaster(value: number){
+
+    //     viewer.clock.multiplier += value;
+
+
+    // }
 
 
     useEffect(() => {
@@ -174,11 +186,16 @@ export default function CesiumGlobe() {
                         outlineWidth: 2,
                     }
                 })
+
+                
             }  
             
+
             
     
             //viewer.flyTo(issEntity);
+
+            //Maybe I can do something here to make the orbit appear only when we click on the satellite
 
             for(const [key, value] of trailPositionsDictionary.entries()){
 
@@ -227,8 +244,8 @@ export default function CesiumGlobe() {
 
 
         //to speed up the simulation(100x);
-        //viewer.clock.multiplier = 100;
-
+        //viewer.clock.multiplier *= simulationTime;
+        viewerRef.current = viewer;
 
         //Adding a trail for the satellites
         const trailCenterTime = JulianDate.toDate(viewer.clock.currentTime);
@@ -238,28 +255,11 @@ export default function CesiumGlobe() {
 
         initializeCesium();
 
-        
-        // //adding a list for the ISS
-        // trailPositionsDictionary.set("ISS", calculateSatelliteOrbit(getSatelliteRecord("ISS"), trailCenterTime));
-
-        // //Adding a list for the Hubble:
-        // trailPositionsDictionary.set("Hubble", calculateSatelliteOrbit(getSatelliteRecord("Hubble"), trailCenterTime));
-
-        // //Adding a list for the CSS Tianhe
-        // trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
-
-//--------------------------------------------------ORBITS------------------------------------------------------------------------//
-
-
-
-
-//----------------------------------------------------------------------------------------------------------------------------------//
 
         return() => {
             viewer.destroy();
             //viewerRef.current = null;
         };
-
 
     }, []);
 
@@ -277,12 +277,72 @@ export default function CesiumGlobe() {
                 className="h-full w-full"
             />
 
-            <button
-                onClick={() => setIsAddSatelliteOpen(true)}
-                className="absolute top-6 left-6 z-40 rounded border border-cyan-500/50 bg-black/80 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950"
-            >
-                + Add Satellite
-            </button>
+            {/* A container for the buttons on the left side of the screen */}
+            <div className="absolute top-6 left-6 z-40">
+
+                <button
+                    onClick={() => setIsAddSatelliteOpen(true)}
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950"
+                >
+                    + Add Satellite
+                </button>
+
+                <div>
+
+                    <button onClick={() => {
+                        setSimulationTime(simulationTime + 10);
+                        if(simulationTime >= 100){
+                            setSimulationTime(100);
+                        }
+
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.multiplier = simulationTime;
+                        }
+
+                    }}
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 mt-2"
+                    
+                    >Faster</button>
+
+                    <button onClick={() => {
+
+                        setSimulationTime(simulationTime - 10);
+                        if(simulationTime <= 1){
+                            setSimulationTime(1);
+                        }
+
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.multiplier = simulationTime;
+                        }
+
+                    }}
+
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 ml-2"
+                    
+                    >Slower</button>
+
+                    <button onClick={() => {
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.currentTime = JulianDate.now();
+                        }
+                    }}
+                    
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 ml-2"
+                    >
+
+                        Reset
+                    </button>
+
+                    <p className="text-sm text-white mt-2">Simulation time: {simulationTime % 10 != 0 ? simulationTime - 1 : simulationTime}</p>
+
+                </div>
+
+            </div>
+
+
+
+
+
 
             <PromptModal
                 title="Add Satellite"

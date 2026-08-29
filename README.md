@@ -7,16 +7,25 @@ A real-time 3D satellite visualization project built with **Next.js, TypeScript,
 Orbital Traffic Control uses real orbital data from **CelesTrak** and SGP4 propagation to calculate satellite positions over time and render them around an interactive 3D Earth.
 
 
+This simulation shows most visible object to a naked eye. If you wonder what you saw flighing past the night sky, you can check through this simulation, what was flying above your location! Or you can use it to see when one of the satellites that you could observe with your eyes without need a telescope will be flying above your location!
+
+
 # UPCOMING FEATURES
 
-* A button to accelerate or slow down the simulation
-* Ability to remove a satellite
+
+
 * Satellite information pops up when clicked on the satellite
+* Satellite orbits are hidden until you click on the satellite, unclicking on the screen makes the orbit go away
+* A clock that shows the current date/time and changes dynamically when we accelerate or slow down the simulation
+* Ability to remove a satellite
 * Navigator that locates your position on the map
 * Calculator that shows the next date and time a satellite will be flying above your head
 * Ability to show/hid a selected satellites orbit
 * An error modal/component that shows basic errors when they happen
+* Add about 50 - 100 of the most brightest/biggest/ most visible satellites. 
 
+* A button to accelerate or slow down the simulation - Done
+* A button to bring the satellites and the simulation back to the real time - Done
 
 
 
