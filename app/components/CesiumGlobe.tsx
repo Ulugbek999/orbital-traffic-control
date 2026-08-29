@@ -195,6 +195,8 @@ export default function CesiumGlobe() {
     
             //viewer.flyTo(issEntity);
 
+            //Maybe I can do something here to make the orbit appear only when we click on the satellite
+
             for(const [key, value] of trailPositionsDictionary.entries()){
 
                 viewer.entities.add({
@@ -253,28 +255,11 @@ export default function CesiumGlobe() {
 
         initializeCesium();
 
-        
-        // //adding a list for the ISS
-        // trailPositionsDictionary.set("ISS", calculateSatelliteOrbit(getSatelliteRecord("ISS"), trailCenterTime));
-
-        // //Adding a list for the Hubble:
-        // trailPositionsDictionary.set("Hubble", calculateSatelliteOrbit(getSatelliteRecord("Hubble"), trailCenterTime));
-
-        // //Adding a list for the CSS Tianhe
-        // trailPositionsDictionary.set("CSS Tianhe", calculateSatelliteOrbit(getSatelliteRecord("CSS Tianhe"), trailCenterTime));
-
-//--------------------------------------------------ORBITS------------------------------------------------------------------------//
-
-
-
-
-//----------------------------------------------------------------------------------------------------------------------------------//
 
         return() => {
             viewer.destroy();
             //viewerRef.current = null;
         };
-
 
     }, []);
 
@@ -331,20 +316,24 @@ export default function CesiumGlobe() {
                         }
 
                     }}
+
                     className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 ml-2"
                     
                     >Slower</button>
 
                     <button onClick={() => {
-
-                    }}>
+                        if(viewerRef.current != null){
+                            viewerRef.current.clock.currentTime = JulianDate.now();
+                        }
+                    }}
+                    
+                    className="rounded border border-cyan-500/50 bg-black/80 px-4 py-1 text-sm font-medium text-white backdrop-blur hover:bg-cyan-950 ml-2"
+                    >
 
                         Reset
                     </button>
 
-
                     <p className="text-sm text-white mt-2">Simulation time: {simulationTime % 10 != 0 ? simulationTime - 1 : simulationTime}</p>
-
 
                 </div>
 
