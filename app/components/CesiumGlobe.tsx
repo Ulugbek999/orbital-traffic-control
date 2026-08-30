@@ -27,6 +27,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import { getSatellites } from "../lib/satellites";
 import { SatRec } from "satellite.js";
 import PromptModal from "./PromptModal";
+import SatelliteInfoModal from "./SatelliteInfoModal";
 
 
 
@@ -85,6 +86,7 @@ export default function CesiumGlobe() {
     //useStates
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
     const [simulationTime, setSimulationTime] = useState(1);
+    const [isSatelliteModalOpen, setIsSatelliteModalOpen] = useState(false);
 
     //let simulationSpeed = simulationTime;
 
@@ -339,6 +341,13 @@ export default function CesiumGlobe() {
 
             </div>
 
+            {isSatelliteModalOpen && (<SatelliteInfoModal 
+                // title="Satellite Info" 
+                // label="Name of the satellite"
+                // satelliteInfo
+                // isOpen=true 
+                onClose={() => setIsSatelliteModalOpen(false)}
+            />)}
 
 
 

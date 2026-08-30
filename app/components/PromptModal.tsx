@@ -27,6 +27,11 @@ type PromptModalProps = {
 };
 
 
+
+
+
+
+
 export default function PromptModal({title, label, placeholder = "", submitText = "Submit", isOpen, onClose, onSubmit}: PromptModalProps) {
 
     //to store whatever the user is currently typing
@@ -77,5 +82,6 @@ export default function PromptModal({title, label, placeholder = "", submitText 
                 {submitText}
             </button>
         </div>
+
     )
 }
