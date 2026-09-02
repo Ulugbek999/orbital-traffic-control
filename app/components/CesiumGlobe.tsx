@@ -27,6 +27,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import { getSatellites } from "../lib/satellites";
 import { SatRec } from "satellite.js";
 import PromptModal from "./PromptModal";
+import InternalClock from "./InternalClock";
 
 
 
@@ -85,6 +86,7 @@ export default function CesiumGlobe() {
     //useStates
     const [isAddSatelliteOpen, setIsAddSatelliteOpen] = useState(false);
     const [simulationTime, setSimulationTime] = useState(1);
+    const [clockTime, setClockTime] = useState<Date>(new Date());
 
     //let simulationSpeed = simulationTime;
 
@@ -209,10 +211,17 @@ export default function CesiumGlobe() {
                 })
 
 
-            }        
-
+            }   
 
         }
+
+        //Internal clock
+        const interval = setInterval(() => {
+            const currentClockTime = viewer.clock.currentTime;
+            const date = JulianDate.toDate(currentClockTime);
+            setClockTime(date);
+        }, 1000);
+
 
 
         //Telling Cesium where we copied its Workers/Assets/etc.
@@ -258,8 +267,11 @@ export default function CesiumGlobe() {
 
         return() => {
             viewer.destroy();
-            //viewerRef.current = null;
+            //viewerRef.current = null
+
         };
+        
+        clearInterval(interval);
 
     }, []);
 
@@ -276,6 +288,10 @@ export default function CesiumGlobe() {
                 ref={cesiumContainer}
                 className="h-full w-full"
             />
+
+            {/* This is where the internal clock component will go, but for now I'll hard code the clock */}
+
+            <InternalClock time={clockTime}/>
 
             {/* A container for the buttons on the left side of the screen */}
             <div className="absolute top-6 left-6 z-40">
@@ -341,9 +357,6 @@ export default function CesiumGlobe() {
 
 
 
-
-
-
             <PromptModal
                 title="Add Satellite"
                 label="NORAD Catalog Number"
@@ -366,77 +379,8 @@ export default function CesiumGlobe() {
                     //by this time the new satellite record should be saved in the database so trigger a reloard, so that we re-read the local database and add the
                     //new satellite record.
 
-
                     //JUST TRIGGER A RELOAD HERE
                     window.location.reload();
-
-
-                    // //Adding a new satellite to React state
-                    // setSatellites(previousSatellites => [...previousSatellites, data]);
-
-                    // //Creating teh satellite.js SatRec
-                    // const satelliteRecord = createSatelliteRecord(data.tleLine1, data.tleLine2);
-                    
-                    // //Storing the new satellite in our records map
-                    // satelliteRecords.set(data.name, satelliteRecord);
-
-
-                    // const viewer = viewerRef.current;
-
-                    // if(!viewer) {
-                    //     throw new Error("Cesium viewer does not exist.");
-                    // }
-
-                    //console.log("NORAD ID:", value);
-
-                    // const dynamicPosition = new CallbackPositionProperty(
-                    //     (time, result) => {
-                    //         const currentTime = time ?? JulianDate.now();
-
-                    //         const date = JulianDate.toDate(currentTime);
-
-                    //         const position = calculateSatellitePosition(
-                    //             satelliteRecord,
-                    //             date
-                    //         );
-
-                    //         if (position === null) {
-                    //             return undefined;
-                    //         }
-
-                    //         const altitudeMeters = position.altitudekm * 1000;
-
-                    //         return Cartesian3.fromDegrees(
-                    //             position.longitude,
-                    //             position.latitude,
-                    //             altitudeMeters,
-                    //             undefined,
-                    //             result
-                    //         );
-                    //     }, 
-                    //     false
-                    // )
-
-                    // viewer.entities.add({
-                    //     name: data.name,
-                    //     position: dynamicPosition,
-
-                    //     point: {
-                    //         pixelSize: 12,
-                    //         color: Color.WHITE,
-                    //         outlineColor: Color.BLACK,
-                    //         outlineWidth: 2,
-                    //     },
-
-                    //     label: {
-                    //         text: data.name,
-                    //         verticalOrigin: VerticalOrigin.BOTTOM,
-                    //         pixelOffset: new Cartesian2(0, -10),
-                    //         fillColor: Color.WHITE,
-                    //         outlineColor: Color.BLACK,
-                    //         outlineWidth: 2,
-                    //     }
-                    // });
 
                 }}
             />
